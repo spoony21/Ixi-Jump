@@ -1,0 +1,13 @@
+caVersion = 0
+id = com.spoony21.ixi-jump
+publisher = spoony
+name = IxiJump
+version = 1.0.1
+capabilities = singleUser
+image = ixijump.png
+minUsers = 
+maxUsers = 
+protocols = 
+contentUrl = https://github.com/spoony21/Ixi-Jump/releases/download/v1.0.0/ixijump.zip
+checksum = b1fab478a78bb95704b38b421aadeb57b9430173efae222463c9794153157433
+contentSize = 1000277
