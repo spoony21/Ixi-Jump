@@ -1,21 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>IxI Jump</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>IxI Jump</title>
 
-<link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrap" id="gameWrap">
+      <canvas id="game"></canvas>
 
-</head>
-<body>
-  <div class="wrap" id="gameWrap">
-   
-    <canvas id="game"></canvas>
-    
-    <!-- Close / Back to Spixi -->
-    <button
+      <!-- Close / Back to Spixi -->
+      <button
         id="spixi-close"
         aria-label="Close mini app"
         title="Close"
@@ -26,58 +30,71 @@
         ✕
       </button>
 
-    <div class="hud">
-      <div class="row space-between">
-        <div class="chip" id="score">Score: 0</div>
-        <div class="chip" id="best">Best: 0</div>
-      </div>
-    </div>
-    <div class="jetbar" aria-hidden="true"><div class="jetfill" id="jetfill"></div><div class="jetcap"></div></div>
-    
-
-    <div class="overlay" id="menu">
-      <div class="card">
-        <div class="badge">Ixian Mini Game</div>
-        <h1 class="title">Ixian Jetpack Runner</h1>
-        <p class="subtitle">A Jetpack game with <strong>hold‑to‑thrust</strong> jetpack physics, <strong>overheat</strong> management, coins, shields, and rising speed. Fly the Ixian robot between energy gates and collect coins.</p>
-        <div class="btns">
-          <button class="btn" id="startBtn">▶ Start</button>
-          <button class="btn" id="howBtn">❓ How to play</button>
-        </div>
-        <p class="note">Desktop: Space/Click • Mobile: Tap & Hold</p>
-      </div>
-    </div>
-
-    <div class="overlay" id="how" style="display:none">
-      <div class="card">
-        <h2 class="title" style="font-size:24px">How to play</h2>
-        <p class="subtitle" style="text-align:left">
-          • Hold to fire jetpack (continuous thrust). Releasing lets gravity pull you down.<br>
-          • The jetpack <strong>overheats</strong>: the heat bar fills while thrusting. If it maxes out, you can't thrust until it cools.<br>
-          • Fly through <strong>energy gates</strong> (no touching them!).<br>
-          • Collect <strong>coins</strong> (+3 pts) and occasional <strong>shields</strong> to survive one hit.<br>
-          • Speed slowly increases. Beat your <strong>Best</strong> score.
-        </p>
-        <div class="btns"><button class="btn" id="backBtn">⬅ Back</button></div>
-      </div>
-    </div>
-
-    <div class="overlay" id="gameover" style="display:none">
-      <div class="card">
-        <h2 class="title">Game Over</h2>
-        <p class="subtitle"><span id="finalScore">0</span> pts • Best <span id="finalBest">0</span> • Coins <span id="finalCoins">0</span></p>
-        <div class="btns">
-          <button class="btn" id="retryBtn">↻ Retry</button>
-          <button class="btn" id="menuBtn">🏠 Menu</button>
+      <div class="hud">
+        <div class="row space-between">
+          <div class="chip" id="score">Score: 0</div>
+          <div class="chip" id="best">Best: 0</div>
         </div>
       </div>
+      <div class="jetbar" aria-hidden="true">
+        <div class="jetfill" id="jetfill"></div>
+        <div class="jetcap"></div>
+      </div>
+
+      <div class="overlay" id="menu">
+        <div class="card">
+          <div class="badge">Ixian Mini Game</div>
+          <h1 class="title">Ixian Jetpack Runner</h1>
+          <p class="subtitle">
+            A Jetpack game with <strong>hold‑to‑thrust</strong> jetpack
+            physics.<br /><br />
+            Fly the Ixian robot between energy gates and collect coins.
+          </p>
+          <div class="btns">
+            <button class="btn" id="startBtn">▶</button>
+            <button class="btn" id="howBtn">How to play</button>
+          </div>
+          <p class="note">Desktop: Space/Click • Mobile: Tap & Hold</p>
+        </div>
+      </div>
+
+      <div class="overlay" id="how" style="display: none">
+        <div class="card">
+          <h2 class="title" style="font-size: 24px">How to play</h2>
+          <p class="subtitle" style="text-align: left">
+            • Hold to fire jetpack. Releasing lets gravity pull you down.<br />
+            cools.<br />
+            • Fly through <strong>energy gates</strong><br />
+            • Collect <strong>IXI</strong> (+3 pts) and occasional
+            <strong>shields</strong> to survive one hit.<br />
+            • Speed slowly increases. Beat your <strong>Best</strong> score.
+          </p>
+          <div class="btns">
+            <button class="btn" id="backBtn">⬅ Back</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="gameover" style="display: none">
+        <div class="card">
+          <h2 class="title">Game Over</h2>
+          <p class="subtitle">
+            <span id="finalScore">0</span> pts • Best
+            <span id="finalBest">0</span> • Coins <span id="finalCoins">0</span>
+          </p>
+          <div class="btns">
+            <button class="btn" id="retryBtn">↻ Retry</button>
+            <button class="btn" id="menuBtn">Menu</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-  </div>
+    <div class="ixijump-banner" aria-hidden="true">
+      <span class="ixijump-word">IXIJUMP</span>
+    </div>
 
     <script src="js/script.js"></script>
     <script src="js/spixi-app-sdk.js"></script>
-
-
-</body>
+  </body>
 </html>

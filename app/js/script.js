@@ -7,12 +7,21 @@
 
   function resize() {
     const rect = wrap.getBoundingClientRect();
-    W = canvas.width = Math.floor(rect.width * devicePixelRatio);
-    H = canvas.height = Math.floor(rect.height * devicePixelRatio);
+    const DPR = Math.min(2, window.devicePixelRatio || 1); // cap DPR to avoid huge canvases on Android
+    W = canvas.width = Math.max(1, Math.floor(rect.width * DPR));
+    H = canvas.height = Math.max(1, Math.floor(rect.height * DPR));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.scale(DPR, DPR);
   }
-  new ResizeObserver(resize).observe(wrap);
+
+  // Use RO when available; otherwise fallback to window.resize.
+  // Defer the actual resize to the next frame to avoid RO feedback loops on some Android builds.
+  if ("ResizeObserver" in window) {
+    const ro = new ResizeObserver(() => requestAnimationFrame(resize));
+    ro.observe(wrap);
+  } else {
+    window.addEventListener("resize", resize);
+  }
   resize();
 
   // Prevent iOS pinch/double-tap zoom and text selection jitter
@@ -75,6 +84,9 @@
   let score = 0,
     coinsTaken = 0;
   let best = Number(localStorage.getItem("ixijet_best") || 0);
+  let decayTimer = 0;
+  // Antenna LED flash state
+  const led = { a: 0, next: 0 }; // a = current flash intensity 0..1, next = time until next flash (sec)
 
   // Robot
   const robot = {
@@ -197,6 +209,8 @@
     safeGates = 3;
     lastGapY = canvas.clientHeight * 0.5;
     lastGateX = -9999; // generous gaps for first gates
+    led.a = 0;
+    led.next = rand(0.25, 1.0); // faster first flash
   }
 
   // --- Helpers ---
@@ -260,9 +274,44 @@
     ctx.moveTo(0, -14);
     ctx.lineTo(0, -22);
     ctx.stroke();
-    ctx.fillStyle = "#34d399";
+
+    // Neon LED cap (brighter + faster)
+    const baseR = 3;
+    const flick = led.a * (0.7 + 0.5 * Math.sin(time * 34)); // more shimmer
+    const r = baseR + 1.8 * flick; // larger pulse
+
+    // hot white->mint->green radial core
+    const grad = ctx.createRadialGradient(0, -24, 0.1, 0, -24, r);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.45, "rgba(167,243,208,1)"); // mint
+    grad.addColorStop(1, "rgba(34,197,94,0.95)");
+    ctx.fillStyle = grad;
+
+    // strong neon glow
+    ctx.shadowColor = `rgba(52,211,153,${0.65 + 0.35 * Math.min(1, led.a)})`;
+    ctx.shadowBlur = 12 + 32 * led.a;
+
     ctx.beginPath();
-    ctx.arc(0, -24, 3, 0, Math.PI * 2);
+    ctx.arc(0, -24, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // additive outer ring for extra punch
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `rgba(52,211,153,${0.35 + 0.55 * Math.min(1, led.a)})`;
+    ctx.lineWidth = 1.5 + 2.5 * led.a;
+    ctx.beginPath();
+    ctx.arc(0, -24, r + 1.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+
+    // cleanup glow
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
+
+    // brighter specular highlight
+    ctx.fillStyle = `rgba(255,255,255,${0.35 + 0.55 * Math.min(1, led.a)})`;
+    ctx.beginPath();
+    ctx.arc(-1.0, -25, 1.0 + 0.8 * led.a, 0, Math.PI * 2);
     ctx.fill();
 
     // Jetpack thrusters
@@ -351,41 +400,49 @@
       ctx.fillStyle = "rgba(34,197,94,0.12)";
       ctx.fillRect(g.x, g.gapY - g.gapH / 2 - t, GATE_W, 6);
       ctx.fillRect(g.x, g.gapY + g.gapH / 2 + t - 6, GATE_W, 6);
+
+      // Errode gate for when shield activated
+      erodeGate(g);
     });
   }
 
-// Smaller IXI logo + animated glow
-function drawIxiLogo(x, y, r, rot) {
-  // r here is a “virtual” size; we’ll draw a bit smaller than before
-  const size = r * 1.7;          // was ~2.1 – now a little smaller
-  const ringR = size * 0.52;
+  // Smaller IXI logo + animated glow
+  function drawIxiLogo(x, y, r, rot) {
+    // r here is a “virtual” size; we’ll draw a bit smaller than before
+    const size = r * 1.7; // was ~2.1 – now a little smaller
+    const ringR = size * 0.52;
 
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rot);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
 
-  // Pulsing glow (0.25–0.55 alpha)
-  const glowA = 0.40 + 0.15 * Math.sin(time * 6 + x * 0.02);
-  ctx.shadowBlur = size * 0.9;
-  ctx.shadowColor = `rgba(52, 211, 153, ${glowA})`;
+    // Pulsing glow (0.25–0.55 alpha)
+    const glowA = 0.4 + 0.15 * Math.sin(time * 6 + x * 0.02);
+    ctx.shadowBlur = size * 0.9;
+    ctx.shadowColor = `rgba(52, 211, 153, ${glowA})`;
 
-  ctx.lineWidth = Math.max(1.5, size * 0.18);
-  ctx.strokeStyle = '#34d399';
+    ctx.lineWidth = Math.max(1.5, size * 0.18);
+    ctx.strokeStyle = "#34d399";
 
-  // left ring
-  ctx.beginPath(); ctx.arc(-size * 0.28, 0, ringR, 0, Math.PI * 2); ctx.stroke();
-  // right ring
-  ctx.beginPath(); ctx.arc( size * 0.28, 0, ringR, 0, Math.PI * 2); ctx.stroke();
+    // left ring
+    ctx.beginPath();
+    ctx.arc(-size * 0.28, 0, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    // right ring
+    ctx.beginPath();
+    ctx.arc(size * 0.28, 0, ringR, 0, Math.PI * 2);
+    ctx.stroke();
 
-  // cleanup
-  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
-  ctx.restore();
-}
+    // cleanup
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
+    ctx.restore();
+  }
 
-function drawCoins() {
-  // keep the slow spin you already set in update()
-  coins.forEach(c => drawIxiLogo(c.x, c.y, COIN_R, c.spin));
-}
+  function drawCoins() {
+    // keep the slow spin you already set in update()
+    coins.forEach((c) => drawIxiLogo(c.x, c.y, COIN_R, c.spin));
+  }
 
   function drawShields() {
     shields.forEach((s) => {
@@ -408,30 +465,105 @@ function drawCoins() {
     });
   }
 
+  // Erode gate edges: punch-out chips + additive neon glow + occasional crumbs
+  function erodeGate(g) {
+    if (decayTimer <= 0) return;
+
+    const t = time * 60; // animate seed
+    const strength = Math.min(1, decayTimer / 1.8);
+    const bitesBase = 12; // chips per gate per frame
+    const bites = (bitesBase + Math.sin(t * 0.07 + g.x * 0.01) * 4) | 0;
+    const cell = 4; // pixel cell size for retro look
+
+    const edgeTopY = Math.max(0, g.gapY - g.gapH / 2);
+    const edgeBottomY = Math.min(canvas.clientHeight, g.gapY + g.gapH / 2);
+
+    function prand(i) {
+      const s = Math.sin(i * 12.9898 + t + g.x * 0.013) * 43758.5453;
+      return s - Math.floor(s);
+    }
+
+    ctx.save();
+
+    // 1) Punch out little “chips” at the inner edges (destination-out)
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0,0,0,0.95)";
+    for (let i = 0; i < bites; i++) {
+      const onBottom = prand(i * 3) > 0.5;
+      const yEdge = onBottom ? edgeBottomY : edgeTopY;
+
+      // bias x near inner edge
+      const r = prand(i * 5 + 1);
+      const x = g.x + Math.pow(r, 1.5) * (GATE_W - cell);
+
+      // bite size (slightly larger / varied)
+      const w = cell * (2 + ((prand(i * 7 + 2) * 4) | 0));
+      const h = cell * (1 + ((prand(i * 11 + 3) * 3) | 0));
+
+      // jitter
+      const jitter = (prand(i * 13 + 4) - 0.5) * 8 * strength;
+      const y = onBottom ? yEdge + jitter : yEdge - h + jitter;
+
+      ctx.fillRect(x, y, w, h);
+
+      // 2) Occasionally spawn a neon crumb from this chip
+      if (Math.random() < 0.35 * strength) {
+        const vx = (Math.random() * 50 + 40) * (Math.random() < 0.5 ? -1 : 1);
+        const vy = (onBottom ? -1 : 1) * (Math.random() * 30 + 10);
+        spawnCrumb(x + w * 0.5, y + (onBottom ? 0 : h), vx * 0.8, vy * 0.8);
+      }
+    }
+
+    // 3) Add a thin neon glow band at the edge (additive)
+    ctx.globalCompositeOperation = "lighter";
+    const glowA =
+      0.12 + 0.1 * strength + 0.06 * Math.sin(time * 7 + g.x * 0.01);
+    ctx.fillStyle = `rgba(52,211,153,${glowA})`;
+    const band = 6; // vertical thickness of glow “aura”
+    ctx.fillRect(g.x, edgeTopY - band, GATE_W, band);
+    ctx.fillRect(g.x, edgeBottomY, GATE_W, band);
+
+    // faint scanline outline (source-over)
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "rgba(52,211,153,0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(g.x, edgeTopY);
+    ctx.lineTo(g.x + GATE_W, edgeTopY);
+    ctx.moveTo(g.x, edgeBottomY);
+    ctx.lineTo(g.x + GATE_W, edgeBottomY);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+  // Single source of truth for laser geometry
+  function getLaserBounds() {
+    // keep in sync with drawTopLaser visuals
+    return { y: 3, h: 6 }; // beam from y=3 to y=9
+  }
+
   function drawTopLaser() {
-  const w = canvas.clientWidth;
-  const y = 3;              // offset a few px from the top edge
-  const h = 6;              // thin beam
-  const pulse = 10 + 3 * Math.sin(time * 8);  // glow “breathes”
+    const w = canvas.clientWidth;
+    const { y, h } = getLaserBounds(); // << use shared bounds
+    const pulse = 10 + 3 * Math.sin(time * 8); // glow “breathes”
 
-  // Base beam
-  const grad = ctx.createLinearGradient(0, y, 0, y + h);
-  grad.addColorStop(0, 'rgba(255, 80, 80, 0.9)');
-  grad.addColorStop(1, 'rgba(220, 38, 38, 0.9)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, y, w, h);
+    // Base beam
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, "rgba(255, 80, 80, 0.9)");
+    grad.addColorStop(1, "rgba(220, 38, 38, 0.9)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, y, w, h);
 
-  // Hot core line
-  ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.fillRect(0, y + h * 0.45, w, 1.2);
+    // Hot core line
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fillRect(0, y + h * 0.45, w, 1.2);
 
-  // Glow (additive)
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
-  ctx.fillRect(0, 0, w, y + h + pulse);
-  ctx.globalCompositeOperation = 'source-over';
-}
-
+    // Glow (additive)
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
+    ctx.fillRect(0, 0, w, y + h + pulse);
+    ctx.globalCompositeOperation = "source-over";
+  }
 
   // --- Collision helpers ---
   function collidesRobotRect(rx, ry, rw, rh) {
@@ -494,11 +626,15 @@ function drawCoins() {
       coins.push({ x: enforcedX + GATE_W / 2, y, spin: 0 }); // no vy drifting
     }
 
+    // (shield spawn block)
     if (Math.random() < SHIELD_CHANCE) {
+      // Keep shield strictly inside the gap, with a margin
+      const margin = SHIELD_R + 8;
+      const y = clamp(gapY, gapY - gapH / 2 + margin, gapY + gapH / 2 - margin);
       shields.push({
         x: enforcedX + GATE_W / 2,
-        y: gapY + rand(-gapH * 0.25, gapH * 0.25),
-        vy: rand(-8, 8),
+        y,
+        vy: 0, // no vertical drift so it can't wander into the beams
       });
     }
   }
@@ -518,6 +654,14 @@ function drawCoins() {
 
   function update(dt) {
     time += dt;
+
+    // Antenna LED: random flash scheduler + decay
+    led.next -= dt;
+    if (led.next <= 0) {
+      led.a = 1.25; // brighter peak
+      led.next = rand(0.35, 1.2); // quicker cadence
+    }
+    if (led.a > 0) led.a = Math.max(0, led.a - dt * 3.2); // snappier fade
 
     // Speed increases over time
     speed = Math.min(MAX_SPEED, speed + SPEED_ACCEL * dt);
@@ -554,10 +698,25 @@ function drawCoins() {
       robot.vy = Math.max(0, robot.vy);
     }
 
+    // Laser hazard (lethal even with shield)
+    {
+      const { y: ly, h: lh } = getLaserBounds();
+      // small margin so what you see matches what kills you
+      const margin = 1;
+      if (
+        collidesRobotRect(0, ly - margin, canvas.clientWidth, lh + margin * 2)
+      ) {
+        crash(); // do not consume shield; laser is instant KO
+      }
+    }
+
     // Move entities
     const dx = speed * dt;
     gates.forEach((g) => (g.x -= dx));
-    coins.forEach(c=>{ c.x -= dx; c.spin += dt * 1.9; });
+    coins.forEach((c) => {
+      c.x -= dx;
+      c.spin += dt * 1.9;
+    });
 
     shields.forEach((s) => {
       s.x -= dx;
@@ -604,6 +763,8 @@ function drawCoins() {
         robot.shield = true;
         robot.shieldTimer = 6;
         pulse(s.x, s.y);
+        decayTimer = 1.8; // <<< start erosion for ~1.8s
+
         return false;
       }
       return s.x > -40 && s.y > -40 && s.y < canvas.clientHeight + 40;
@@ -613,6 +774,8 @@ function drawCoins() {
       robot.shieldTimer -= dt;
       if (robot.shieldTimer <= 0) robot.shield = false;
     }
+
+    if (decayTimer > 0) decayTimer -= dt;
 
     gates = gates.filter((g) => g.x > -GATE_W - 10);
 
@@ -657,6 +820,39 @@ function drawCoins() {
   const flashes = [];
   const pulses = [];
 
+  // Neon crumbs that fly off eroded gate edges
+  const crumbs = [];
+  function spawnCrumb(x, y, vx, vy) {
+    // keep memory bounded
+    if (crumbs.length > 180) crumbs.shift();
+    crumbs.push({ x, y, vx, vy, a: 1, s: Math.random() < 0.5 ? 2 : 3 });
+  }
+
+  // Update + draw crumbs (additive)
+  function drawCrumbs(dt) {
+    if (!crumbs.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(52,211,153,0.9)";
+    for (let i = crumbs.length - 1; i >= 0; i--) {
+      const c = crumbs[i];
+      // motion + fade
+      c.x += c.vx * dt;
+      c.y += c.vy * dt;
+      c.vy += 220 * dt; // tiny gravity
+      c.a -= dt / 0.55; // ~0.55s lifetime
+      if (c.a <= 0) {
+        crumbs.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = Math.max(0, Math.min(1, c.a));
+      ctx.fillRect(c.x | 0, c.y | 0, c.s, c.s);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+
   function render(dt) {
     // Clear
     ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -677,6 +873,7 @@ function drawCoins() {
     // Draw entities
     drawTopLaser();
     drawGates();
+    drawCrumbs(dt); //  crumbs render above gates
     drawCoins();
     drawShields();
     drawRobot(robot.x, robot.y, robot.shield);
