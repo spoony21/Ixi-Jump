@@ -234,6 +234,33 @@ canvas {
   -webkit-touch-callout: none;
 }
 
+/* --- Android WebView fallback for missing aspect-ratio support --- */
+@supports not (aspect-ratio: 1 / 1) {
+  .wrap {
+    position: relative;        /* keep */
+    /* width is already set above; we just ensure height via ::before */
+  }
+
+  /* Creates height = width * 16/9 so the game area isn’t 0px tall */
+  .wrap::before {
+    content: "";
+    display: block;
+    padding-top: calc(100% * 16 / 9); /* portrait 9:16 container */
+  }
+
+  /* Make the children fill the height created by ::before */
+  .wrap > canvas,
+  .wrap > .hud,
+  .wrap > .overlay {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+/* Put overlays above everything interactive, just in case */
+.overlay { z-index: 30; }
+
+
 /* --- Retro neon IXIJUMP header --- */
 .ixijump-banner {
   position: fixed;

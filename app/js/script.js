@@ -6,14 +6,24 @@
     H = 640;
 
   function resize() {
+    const DPR = Math.min(2, window.devicePixelRatio || 1);
+
+    // Android WebViews sometimes report 0 height when aspect-ratio is ignored.
     const rect = wrap.getBoundingClientRect();
-    const DPR = Math.min(2, window.devicePixelRatio || 1); // cap DPR to avoid huge canvases on Android
-    W = canvas.width = Math.max(1, Math.floor(rect.width * DPR));
-    H = canvas.height = Math.max(1, Math.floor(rect.height * DPR));
+    const cssW = rect.width || wrap.clientWidth || window.innerWidth;
+
+    // If reported height is 0 or tiny, synthesize it from width (16:9)
+    const rawH = rect.height;
+    const cssH = rawH && rawH > 10 ? rawH : cssW * (16 / 9);
+
+    // Set the backing store size
+    W = canvas.width = Math.max(1, Math.floor(cssW * DPR));
+    H = canvas.height = Math.max(1, Math.floor(cssH * DPR));
+
+    // Map CSS pixels → device pixels
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(DPR, DPR);
     ctx.imageSmoothingEnabled = false;
-    ctx.msImageSmoothingEnabled = false;
   }
 
   // Use RO when available; otherwise fallback to window.resize.
