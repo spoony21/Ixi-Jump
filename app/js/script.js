@@ -12,6 +12,8 @@
     H = canvas.height = Math.max(1, Math.floor(rect.height * DPR));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(DPR, DPR);
+    ctx.imageSmoothingEnabled = false;
+    ctx.msImageSmoothingEnabled = false;
   }
 
   // Use RO when available; otherwise fallback to window.resize.
@@ -138,7 +140,6 @@
   // UI Elements
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
-  const jetfill = document.getElementById("jetfill");
   const menuOverlay = document.getElementById("menu");
   const howOverlay = document.getElementById("how");
   const overOverlay = document.getElementById("gameover");
@@ -147,23 +148,31 @@
   const finalCoins = document.getElementById("finalCoins");
   bestEl.textContent = `Best: ${best}`;
 
-  document.getElementById("startBtn").onclick = () => {
-    start();
-  };
-  document.getElementById("howBtn").onclick = () => {
+  function bindTap(el, fn) {
+    ["click", "touchend", "pointerup"].forEach((ev) =>
+      el.addEventListener(
+        ev,
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          fn();
+        },
+        { passive: false }
+      )
+    );
+  }
+
+  bindTap(document.getElementById("startBtn"), start);
+  bindTap(document.getElementById("howBtn"), () => {
     howOverlay.style.display = "grid";
     menuOverlay.style.display = "none";
-  };
-  document.getElementById("backBtn").onclick = () => {
+  });
+  bindTap(document.getElementById("backBtn"), () => {
     howOverlay.style.display = "none";
     menuOverlay.style.display = "grid";
-  };
-  document.getElementById("retryBtn").onclick = () => {
-    restart();
-  };
-  document.getElementById("menuBtn").onclick = () => {
-    toMenu();
-  };
+  });
+  bindTap(document.getElementById("retryBtn"), restart);
+  bindTap(document.getElementById("menuBtn"), toMenu);
 
   function toMenu() {
     state = "MENU";
@@ -319,23 +328,36 @@
     roundRect(-22, -6, 6, 12, 3, true, false);
     roundRect(16, -6, 6, 12, 3, true, false);
 
-    // Flame if thrusting
+    // Flame if thrusting (IXI green)
     if (holding && !robot.overheated) {
-      const f = (Math.sin(time * 60) + 1) / 2; // flicker 0..1
-      const len = 16 + f * 9;
-      const jitter = (Math.random() - 0.5) * 2;
-      const gradL = ctx.createLinearGradient(-25, 0, -25 + len, 0);
-      gradL.addColorStop(0, "#fca5a5");
-      gradL.addColorStop(0.4, "#fdba74");
-      gradL.addColorStop(1, "#fde047");
+      const f = (Math.sin(time * 60) + 1) / 2; // 0..1 flicker
+      const len = 16 + f * 9 + thrustHold * 14; // grows as you hold
+      const jitter = (Math.random() - 0.5) * (2 + thrustHold * 0.6);
+
+      ctx.save();
+      // subtle neon bloom to match the theme
+      ctx.globalCompositeOperation = "lighter";
+      const glow = 0.45 + 0.35 * f;
+      ctx.shadowColor = `rgba(52,211,153,${glow})`;
+      ctx.shadowBlur = 14 + 10 * f;
+
+      // left nozzle: white core -> mint -> green
+      let gradL = ctx.createLinearGradient(-25, 0, -25 + len, 0);
+      gradL.addColorStop(0.0, "rgba(255,255,255,0.95)"); // hot core
+      gradL.addColorStop(0.35, "rgba(167,243,208,0.95)"); // mint
+      gradL.addColorStop(1.0, "rgba(22,163,74,0.95)"); // green
       ctx.fillStyle = gradL;
       flame(-25, 2 + jitter, len);
-      const gradR = ctx.createLinearGradient(25, 0, 25 - len, 0);
-      gradR.addColorStop(0, "#fca5a5");
-      gradR.addColorStop(0.4, "#fdba74");
-      gradR.addColorStop(1, "#fde047");
+
+      // right nozzle (mirror)
+      let gradR = ctx.createLinearGradient(25, 0, 25 - len, 0);
+      gradR.addColorStop(0.0, "rgba(255,255,255,0.95)");
+      gradR.addColorStop(0.35, "rgba(167,243,208,0.95)");
+      gradR.addColorStop(1.0, "rgba(22,163,74,0.95)");
       ctx.fillStyle = gradR;
       flame(25, 2 - jitter, -len);
+
+      ctx.restore();
     }
 
     // Shield effect
@@ -683,6 +705,13 @@
     robot.heat = clamp(robot.heat, 0, HEAT_MAX);
     robot.overheated = robot.heat >= HEAT_MAX - 0.001 && holding;
 
+    // Throttle meter: ramps while holding, drops when released
+    if (holding && !robot.overheated) {
+      thrustHold = Math.min(1, thrustHold + dt * 1.8); // ~0.55s to full
+    } else {
+      thrustHold = Math.max(0, thrustHold - dt * 2.0);
+    }
+
     robot.vy += GRAVITY * dt;
     robot.y += robot.vy * dt;
 
@@ -722,6 +751,28 @@
       s.x -= dx;
       s.y += s.vy * dt;
     });
+
+    // --- emit short "spitting" pixel trail from both nozzles while thrusting ---
+    if (holding && !robot.overheated) {
+      const rate = 24 + 60 * thrustHold; // particles/sec, grows with hold time
+      emitCarry += rate * dt; // accumulator to keep rate stable
+      while (emitCarry > 1) {
+        const jitter = (Math.random() - 0.5) * 3;
+        spawnPuff(robot.x - 25, robot.y + 2 + jitter); // left nozzle
+        spawnPuff(robot.x + 25, robot.y + 2 + jitter); // right nozzle
+        emitCarry -= 1;
+      }
+    }
+
+    // --- step & cull puffs ---
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i];
+      p.age += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 240 * dt; // slight downward pull
+      if (p.age >= p.life) puffs.splice(i, 1);
+    }
 
     // Collisions + scoring
     gates.forEach((g) => {
@@ -780,7 +831,6 @@
     gates = gates.filter((g) => g.x > -GATE_W - 10);
 
     scoreEl.textContent = `Score: ${score}`;
-    jetfill.style.height = `${(robot.heat / HEAT_MAX) * 100}%`;
   }
 
   function crash() {
@@ -820,6 +870,26 @@
   const flashes = [];
   const pulses = [];
 
+  // Thruster "spitting" particles + hold throttle
+  const puffs = [];
+  let thrustHold = 0; // 0..1, how long you've been holding
+  let emitCarry = 0; // emitter accumulator for stable emission rates
+
+  function spawnPuff(x, y) {
+    const burst = Math.random() < 0.12 + 0.28 * thrustHold; // occasional bigger spit
+    const s = burst
+      ? Math.random() < 0.5
+        ? 3
+        : 4
+      : Math.random() < 0.5
+      ? 2
+      : 3;
+    const vx = -(110 + 140 * thrustHold + Math.random() * 60); // drift left
+    const vy = (Math.random() - 0.5) * (18 + 22 * thrustHold); // tiny vertical jitter
+    const life = burst ? 0.18 : 0.28 + Math.random() * 0.12; // short-lived pixels
+    puffs.push({ x, y, vx, vy, life, age: 0, size: s });
+  }
+
   // Neon crumbs that fly off eroded gate edges
   const crumbs = [];
   function spawnCrumb(x, y, vx, vy) {
@@ -853,6 +923,27 @@
     ctx.restore();
   }
 
+  function drawPuffs() {
+    if (!puffs.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const p of puffs) {
+      const a = Math.max(0, 1 - p.age / p.life);
+
+      // tiny white-hot core
+      ctx.globalAlpha = 0.55 * a;
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fillRect(p.x | 0, p.y | 0, p.size - 1, p.size - 1);
+
+      // green glow rim
+      ctx.globalAlpha = 0.9 * a;
+      ctx.fillStyle = "rgba(52,211,153,1)";
+      ctx.fillRect((p.x - 1) | 0, (p.y - 1) | 0, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   function render(dt) {
     // Clear
     ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -876,6 +967,7 @@
     drawCrumbs(dt); //  crumbs render above gates
     drawCoins();
     drawShields();
+    drawPuffs();
     drawRobot(robot.x, robot.y, robot.shield);
 
     // Effects
