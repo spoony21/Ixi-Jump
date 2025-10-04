@@ -82,7 +82,26 @@
     lastGateX = -9999;
   let score = 0,
     coinsTaken = 0;
-  let best = Number(localStorage.getItem("ixijet_best") || 0);
+  // Safe storage wrapper: works even when DOM storage is disabled in WebView
+  const store = (() => {
+    try {
+      const t = "__probe_" + Date.now();
+      localStorage.setItem(t, "1");
+      localStorage.removeItem(t);
+      return localStorage; // real storage available
+    } catch (e) {
+      console.warn("localStorage unavailable in this WebView:", e);
+      const mem = {}; // in-memory fallback for this session
+      return {
+        getItem: (k) => (k in mem ? mem[k] : null),
+        setItem: (k, v) => (mem[k] = String(v)),
+        removeItem: (k) => delete mem[k],
+      };
+    }
+  })();
+
+  let best = Number(store.getItem("ixijet_best") || 0);
+
   let decayTimer = 0;
   // Antenna LED flash state
   const led = { a: 0, next: 0 }; // a = current flash intensity 0..1, next = time until next flash (sec)
@@ -858,7 +877,7 @@
     finalCoins.textContent = coinsTaken;
     if (score > best) {
       best = score;
-      localStorage.setItem("ixijet_best", String(best));
+      store.setItem("ixijet_best", String(best));
     }
     finalBest.textContent = best;
     bestEl.textContent = `Best: ${best}`;
