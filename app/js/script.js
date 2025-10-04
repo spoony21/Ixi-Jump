@@ -32,22 +32,9 @@
     passive: false,
   });
 
-  // Block default touch gestures on the game area (so hold doesn't trigger select/zoom)
-  // NOTE: we still allow taps on UI (buttons/links/overlays)
+  // Block default gestures ONLY on the canvas (Android WebView friendly)
   ["touchstart", "touchmove", "touchend"].forEach((ev) =>
-    wrap.addEventListener(
-      ev,
-      (e) => {
-        const t = e.target;
-        if (
-          t &&
-          (t.closest(".overlay") || t.closest("button") || t.closest("a"))
-        )
-          return;
-        e.preventDefault();
-      },
-      { passive: false }
-    )
+    canvas.addEventListener(ev, (e) => e.preventDefault(), { passive: false })
   );
 
   // --- Game constants ---
@@ -161,15 +148,21 @@
       )
     );
   }
+  function setCanvasInteractive(on) {
+    // When false, the canvas won’t intercept taps; overlays get them.
+    canvas.style.pointerEvents = on ? "auto" : "none";
+  }
 
   bindTap(document.getElementById("startBtn"), start);
   bindTap(document.getElementById("howBtn"), () => {
     howOverlay.style.display = "grid";
     menuOverlay.style.display = "none";
+    setCanvasInteractive(false);
   });
   bindTap(document.getElementById("backBtn"), () => {
     howOverlay.style.display = "none";
     menuOverlay.style.display = "grid";
+    setCanvasInteractive(false);
   });
   bindTap(document.getElementById("retryBtn"), restart);
   bindTap(document.getElementById("menuBtn"), toMenu);
@@ -179,12 +172,14 @@
     menuOverlay.style.display = "grid";
     howOverlay.style.display = "none";
     overOverlay.style.display = "none";
+    setCanvasInteractive(false);
   }
   function start() {
     state = "PLAY";
     menuOverlay.style.display = "none";
     howOverlay.style.display = "none";
     overOverlay.style.display = "none";
+    setCanvasInteractive(true);
     resetWorld();
   }
   function restart() {
@@ -395,36 +390,34 @@
     ctx.strokeStyle = "#22c55e";
     ctx.fillStyle = "#0c2a18";
     ctx.lineWidth = 3;
+
     gates.forEach((g) => {
-      // Left pillar
-      roundRect(g.x, 0, GATE_W, g.gapY - g.gapH / 2, 10, true, false);
-      // Right pillar
-      roundRect(
-        g.x,
-        g.gapY + g.gapH / 2,
-        GATE_W,
-        canvas.clientHeight - (g.gapY + g.gapH / 2),
-        10,
-        true,
-        false
-      );
-      // Edges glow
-      ctx.strokeStyle = "rgba(34,197,94,0.85)";
-      ctx.strokeRect(g.x + 1.5, 0, GATE_W - 3, g.gapY - g.gapH / 2);
-      ctx.strokeRect(
-        g.x + 1.5,
-        g.gapY + g.gapH / 2,
-        GATE_W - 3,
-        canvas.clientHeight - (g.gapY + g.gapH / 2)
-      );
-      // Animated field
+      const topH = g.gapY - g.gapH / 2;
+      const botY = g.gapY + g.gapH / 2;
+      const botH = canvas.clientHeight - botY;
+
+      // Top pillar (if not blasted)
+      if (!g.topGone) {
+        roundRect(g.x, 0, GATE_W, topH, 10, true, false);
+        ctx.strokeStyle = "rgba(34,197,94,0.85)";
+        ctx.strokeRect(g.x + 1.5, 0, GATE_W - 3, topH);
+      }
+
+      // Bottom pillar (if not blasted)
+      if (!g.botGone) {
+        roundRect(g.x, botY, GATE_W, botH, 10, true, false);
+        ctx.strokeStyle = "rgba(34,197,94,0.85)";
+        ctx.strokeRect(g.x + 1.5, botY, GATE_W - 3, botH);
+      }
+
+      // Animated inner field (keep it—looks cool even if one side is missing)
       const t = (time * 120) % 20;
       ctx.fillStyle = "rgba(34,197,94,0.12)";
       ctx.fillRect(g.x, g.gapY - g.gapH / 2 - t, GATE_W, 6);
       ctx.fillRect(g.x, g.gapY + g.gapH / 2 + t - 6, GATE_W, 6);
 
-      // Errode gate for when shield activated
-      erodeGate(g);
+      // Optional: only erode if some side still exists
+      if (!g.topGone || !g.botGone) erodeGate(g);
     });
   }
 
@@ -635,7 +628,14 @@
     const minX = lastGateX + GATE_W + Math.max(140, canvas.clientWidth * 0.18);
     const enforcedX = Math.max(candidateX, minX);
 
-    gates.push({ x: enforcedX, gapY, gapH, scored: false });
+    gates.push({
+      x: enforcedX,
+      gapY,
+      gapH,
+      scored: false,
+      topGone: false,
+      botGone: false,
+    });
     lastGateX = enforcedX;
 
     if (Math.random() < COIN_CHANCE) {
@@ -782,20 +782,24 @@
         g.scored = true;
       }
       // collide with top/bottom blocks
-      if (
-        collidesRobotRect(g.x, 0, GATE_W, g.gapY - g.gapH / 2) ||
-        collidesRobotRect(
-          g.x,
-          g.gapY + g.gapH / 2,
-          GATE_W,
-          canvas.clientHeight - (g.gapY + g.gapH / 2)
-        )
-      ) {
+      const topH = g.gapY - g.gapH / 2;
+      const botY = g.gapY + g.gapH / 2;
+      const botH = canvas.clientHeight - botY;
+
+      const hitTop = !g.topGone && collidesRobotRect(g.x, 0, GATE_W, topH);
+      const hitBottom =
+        !g.botGone && collidesRobotRect(g.x, botY, GATE_W, botH);
+
+      if (hitTop || hitBottom) {
         if (robot.shield) {
+          // consume shield and BLAST the side we touched
           robot.shield = false;
           robot.shieldTimer = 0;
+          blastGate(g, hitTop ? "top" : "bottom");
           nudge();
-        } else crash();
+        } else {
+          crash();
+        }
       }
     });
 
@@ -849,6 +853,7 @@
     finalBest.textContent = best;
     bestEl.textContent = `Best: ${best}`;
     overOverlay.style.display = "grid";
+    setCanvasInteractive(false);
   }
 
   // --- Tiny effects ---
@@ -923,6 +928,115 @@
     ctx.restore();
   }
 
+  // --- Gate explosion shards (pixel chunks) ---
+  const shards = [];
+
+  function spawnGateExplosion(rect, side) {
+    // rect = {x, y, w, h}
+    // side = 'top' | 'bottom' (for velocity bias)
+
+    // limit memory
+    if (shards.length > 600) shards.splice(0, shards.length - 600);
+
+    const cx = rect.x + rect.w * 0.75; // bias near inner edge
+    const cy = clamp(robot.y, rect.y + 8, rect.y + rect.h - 8);
+
+    const COUNT = (70 + Math.random() * 40) | 0;
+    for (let i = 0; i < COUNT; i++) {
+      const glow = Math.random() < 0.38; // mix of neon & dark chunks
+      const s = glow
+        ? Math.random() < 0.5
+          ? 2
+          : 3
+        : Math.random() < 0.6
+        ? 2
+        : 3;
+
+      // blow outward to the RIGHT; vertical bias by side
+      const vx = 80 + Math.random() * 240;
+      const vyBase = (Math.random() - 0.5) * 220;
+      const vy =
+        side === "top" ? Math.abs(vyBase) * 0.8 : -Math.abs(vyBase) * 0.8;
+
+      const life = 0.5 + Math.random() * 0.45;
+      shards.push({
+        x: cx + (Math.random() - 0.5) * 10,
+        y: cy + (Math.random() - 0.5) * 12,
+        vx,
+        vy,
+        g: 980, // gravity
+        fr: 0.98, // drag
+        a: 1,
+        life,
+        age: 0,
+        size: s,
+        glow,
+      });
+    }
+
+    // impact feedback
+    pop(cx, cy);
+    shake(5, 240);
+  }
+
+  function drawShards(dt) {
+    if (!shards.length) return;
+
+    // integrate & cull
+    for (let i = shards.length - 1; i >= 0; i--) {
+      const p = shards[i];
+      p.age += dt;
+      p.vx *= p.fr;
+      p.vy = p.vy + p.g * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.a = Math.max(0, 1 - p.age / p.life);
+      if (p.age >= p.life) shards.splice(i, 1);
+    }
+
+    ctx.save();
+
+    // dark gate chunks
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#0c2a18";
+    for (const p of shards) {
+      if (p.glow) continue;
+      ctx.globalAlpha = 0.85 * p.a;
+      ctx.fillRect(p.x | 0, p.y | 0, p.size, p.size);
+    }
+
+    // neon specks
+    ctx.globalCompositeOperation = "lighter";
+    for (const p of shards) {
+      if (!p.glow) continue;
+      const a = p.a;
+      ctx.globalAlpha = 0.55 * a; // white core
+      ctx.fillStyle = "rgba(255,255,255,1)";
+      ctx.fillRect(p.x | 0, p.y | 0, p.size - 1, p.size - 1);
+
+      ctx.globalAlpha = 0.9 * a; // green halo
+      ctx.fillStyle = "rgba(52,211,153,1)";
+      ctx.fillRect((p.x - 1) | 0, (p.y - 1) | 0, p.size, p.size);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // mark one half as gone + spawn shards
+  function blastGate(g, side) {
+    if (side === "top" && !g.topGone) {
+      const h = g.gapY - g.gapH / 2;
+      g.topGone = true;
+      spawnGateExplosion({ x: g.x, y: 0, w: GATE_W, h }, "top");
+    } else if (side === "bottom" && !g.botGone) {
+      const y = g.gapY + g.gapH / 2;
+      const h = canvas.clientHeight - y;
+      g.botGone = true;
+      spawnGateExplosion({ x: g.x, y, w: GATE_W, h }, "bottom");
+    }
+  }
+
   function drawPuffs() {
     if (!puffs.length) return;
     ctx.save();
@@ -965,6 +1079,7 @@
     drawTopLaser();
     drawGates();
     drawCrumbs(dt); //  crumbs render above gates
+    drawShards(dt);
     drawCoins();
     drawShields();
     drawPuffs();
