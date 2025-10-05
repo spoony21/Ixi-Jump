@@ -2,19 +2,17 @@
   const canvas = document.getElementById("game");
   const isAndroid = /Android/i.test(navigator.userAgent);
 
-  // On Android WebView, {desynchronized:true, alpha:false} can blank the canvas.
-  // Use the safest path on Android, keep your fast path elsewhere.
+  // On Android WebView, {desynchronized:true, alpha:false} 
   const ctx = isAndroid
     ? canvas.getContext("2d")
     : canvas.getContext("2d", { desynchronized: true, alpha: false });
 
-  // Give the canvas an explicit opaque background so even if alpha is honored
-  // the layer still composites visibly.
+  // Dark IXI green background
   canvas.style.backgroundColor = "#06130c";
 
   const wrap = document.getElementById("gameWrap"); // <-- add this line
 
-  // Bootstrap: ensure we never start with a 0×0 canvas (Android quirk).
+  // Bootstrap: ensure we never start with a 0×0 canvas
   if (!wrap.style.width || !wrap.style.height) {
     const w = Math.min(window.innerWidth - 16, 900);
     const h = Math.floor(w / (9 / 16));
@@ -56,7 +54,7 @@
 
       const { w, h } = vp();
 
-      // reserve the top band (7% of viewport height + safe-top + a small cushion)
+      // reserve the top band (% of viewport height + safe-top + a small cushion)
       const topReserve = Math.max(0, h * TOP_FRAC) + SAFE_TOP + 4;
 
       // effective height for the game area
@@ -89,14 +87,14 @@
   // --- Caches & helpers (visuals unchanged) ---
   let laserGrad = null;
   function rebuildLaserGrad() {
-    // uses your existing getLaserBounds() (declared later – function hoisting is fine)
+    // uses getLaserBounds()
     const { y, h } = getLaserBounds();
     laserGrad = ctx.createLinearGradient(0, y, 0, y + h);
     laserGrad.addColorStop(0, "rgba(255, 80, 80, 0.9)");
     laserGrad.addColorStop(1, "rgba(220, 38, 38, 0.9)");
   }
 
-  // Starfield prerender (we draw stars once per resize, then scroll/blit each frame)
+  // Starfield prerender
   let starsCanvas, starsCtx;
   function buildStars(w, h) {
     starsCanvas = document.createElement("canvas");
@@ -165,7 +163,6 @@
   }
 
   // Use RO when available; otherwise fallback to window.resize.
-  // Defer the actual resize to the next frame to avoid RO feedback loops on some Android builds.
   if ("ResizeObserver" in window) {
     const ro = new ResizeObserver(() => requestAnimationFrame(resize));
     ro.observe(wrap);
@@ -320,7 +317,7 @@
     );
   }
   function setCanvasInteractive(on) {
-    // When false, the canvas won’t intercept taps; overlays get them.
+    // When false, the canvas won’t intercept taps; they’ll reach the overlays below
     canvas.style.pointerEvents = on ? "auto" : "none";
   }
 
