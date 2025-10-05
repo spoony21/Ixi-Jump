@@ -1,29 +1,139 @@
 (() => {
   const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-  const wrap = document.getElementById("gameWrap");
-  let W = 360,
-    H = 640;
+  // Ask Android WebView for the fast path; appearance is unchanged.
+  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+
+  const wrap = document.getElementById("gameWrap"); // <-- add this line
+
+  // --- Fit the game to the *actual* viewport, reserving top UI space ---
+  (function fitWrapBootstrap() {
+    const A_BASE = 9 / 16; // design aspect
+    const MAX_W = 900; // desktop cap
+    const MARGIN = 8; // outer margin (L/R & overall)
+    const TOP_FRAC = 0.04; // reserve 4% for banner/EXIT
+
+    // read iOS safe-area inset top in px (cached)
+    let SAFE_TOP = 0;
+    function readSafeTop() {
+      // create a temp el that measures env(safe-area-inset-top)
+      const el = document.createElement("div");
+      el.style.position = "fixed";
+      el.style.top = "0";
+      el.style.height = "env(safe-area-inset-top)";
+      el.style.pointerEvents = "none";
+      document.body.appendChild(el);
+      const px = parseFloat(getComputedStyle(el).height) || 0;
+      document.body.removeChild(el);
+      return px;
+    }
+
+    function vp() {
+      const vv = window.visualViewport;
+      const w = (vv ? vv.width : window.innerWidth) - MARGIN * 2;
+      const h = (vv ? vv.height : window.innerHeight) - MARGIN * 2;
+      return { w, h };
+    }
+
+    function fitWrapToViewport() {
+      if (!SAFE_TOP) SAFE_TOP = readSafeTop();
+
+      const { w, h } = vp();
+
+      // reserve the top band (7% of viewport height + safe-top + a small cushion)
+      const topReserve = Math.max(0, h * TOP_FRAC) + SAFE_TOP + 4;
+
+      // effective height for the game area
+      const hAvail = Math.max(1, h - topReserve);
+
+      // allow slimmer aspect on very-tall phones, capped by A_BASE
+      const A_eff = Math.min(A_BASE, w / hAvail);
+
+      let W = Math.min(w, MAX_W);
+      let H = W / A_eff;
+      if (H > hAvail) {
+        // safety clamp
+        H = hAvail;
+        W = H * A_eff;
+      }
+
+      wrap.style.width = `${Math.floor(W)}px`;
+      wrap.style.height = `${Math.floor(H)}px`;
+      wrap.style.marginTop = `${Math.floor(topReserve)}px`; // push below banner/EXIT
+    }
+
+    fitWrapToViewport();
+    window.addEventListener("resize", fitWrapToViewport, { passive: true });
+    window.addEventListener("orientationchange", fitWrapToViewport);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", fitWrapToViewport);
+    }
+  })();
+
+  // --- Caches & helpers (visuals unchanged) ---
+  let laserGrad = null;
+  function rebuildLaserGrad() {
+    // uses your existing getLaserBounds() (declared later – function hoisting is fine)
+    const { y, h } = getLaserBounds();
+    laserGrad = ctx.createLinearGradient(0, y, 0, y + h);
+    laserGrad.addColorStop(0, "rgba(255, 80, 80, 0.9)");
+    laserGrad.addColorStop(1, "rgba(220, 38, 38, 0.9)");
+  }
+
+  // Starfield prerender (we draw stars once per resize, then scroll/blit each frame)
+  let starsCanvas, starsCtx;
+  function buildStars(w, h) {
+    starsCanvas = document.createElement("canvas");
+    starsCanvas.width = w;
+    starsCanvas.height = h;
+    starsCtx = starsCanvas.getContext("2d", { alpha: false });
+
+    const layers = [0.3, 0.6, 1.0];
+    layers.forEach((m, i) => {
+      const starCount = 30 + i * 20;
+      starsCtx.globalAlpha = 0.4 + i * 0.2;
+      for (let s = 0; s < starCount; s++) {
+        const x = (s * 97.3) % w;
+        const y = (s * 53.7 + i * 123.4) % h;
+        starsCtx.fillStyle = i === 2 ? "#c7d2fe" : "#93c5fd";
+        starsCtx.fillRect(x, y, i === 0 ? 1 : 2, i === 0 ? 1 : 2);
+      }
+    });
+    starsCtx.globalAlpha = 1;
+
+    // scanlines
+    starsCtx.fillStyle = "rgba(255,255,255,0.03)";
+    for (let y = 0; y < h; y += 3) starsCtx.fillRect(0, y, w, 1);
+  }
+
+  // Small offscreen utility for doing additive glow in a tiny buffer
+  function withOffscreen(w, h, drawFn) {
+    const buf = document.createElement("canvas");
+    buf.width = Math.max(1, w | 0);
+    buf.height = Math.max(1, h | 0);
+    const bctx = buf.getContext("2d");
+    drawFn(bctx, buf);
+    return buf;
+  }
 
   function resize() {
     const DPR = Math.min(2, window.devicePixelRatio || 1);
 
-    // Android WebViews sometimes report 0 height when aspect-ratio is ignored.
     const rect = wrap.getBoundingClientRect();
     const cssW = rect.width || wrap.clientWidth || window.innerWidth;
-
-    // If reported height is 0 or tiny, synthesize it from width (16:9)
     const rawH = rect.height;
     const cssH = rawH && rawH > 10 ? rawH : cssW * (16 / 9);
 
-    // Set the backing store size
-    W = canvas.width = Math.max(1, Math.floor(cssW * DPR));
-    H = canvas.height = Math.max(1, Math.floor(cssH * DPR));
+    // Backing-store size (device pixels)
+    canvas.width = Math.max(1, Math.floor(cssW * DPR));
+    canvas.height = Math.max(1, Math.floor(cssH * DPR));
 
-    // Map CSS pixels → device pixels
+    // Draw in CSS pixels
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(DPR, DPR);
     ctx.imageSmoothingEnabled = false;
+
+    rebuildLaserGrad();
+    buildStars(canvas.clientWidth, canvas.clientHeight);
   }
 
   // Use RO when available; otherwise fallback to window.resize.
@@ -182,19 +292,31 @@
     canvas.style.pointerEvents = on ? "auto" : "none";
   }
 
-  bindTap(document.getElementById("startBtn"), start);
+  bindTap(document.getElementById("startBtn"), () => {
+    haptic(20);
+    start();
+  });
   bindTap(document.getElementById("howBtn"), () => {
+    haptic(10);
     howOverlay.style.display = "grid";
     menuOverlay.style.display = "none";
     setCanvasInteractive(false);
   });
   bindTap(document.getElementById("backBtn"), () => {
+    haptic(10);
     howOverlay.style.display = "none";
     menuOverlay.style.display = "grid";
     setCanvasInteractive(false);
   });
-  bindTap(document.getElementById("retryBtn"), restart);
-  bindTap(document.getElementById("menuBtn"), toMenu);
+
+  bindTap(document.getElementById("retryBtn"), () => {
+    haptic(20);
+    restart();
+  });
+  bindTap(document.getElementById("menuBtn"), () => {
+    haptic(10);
+    toMenu();
+  });
 
   function toMenu() {
     state = "MENU";
@@ -231,8 +353,8 @@
     coinsTaken = 0;
     time = 0;
     last = 0;
-    robot.x = Math.floor((W / devicePixelRatio) * ROBOT_X);
-    robot.y = H / devicePixelRatio / 2;
+    robot.x = Math.floor(canvas.clientWidth * ROBOT_X);
+    robot.y = canvas.clientHeight / 2;
     robot.vy = 0;
     robot.heat = 0;
     robot.overheated = false;
@@ -254,33 +376,17 @@
     return v < min ? min : v > max ? max : v;
   }
 
-  // --- Drawing ---
+  function haptic(ms = 15) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+  }
+
   function drawBackground(dt) {
-    // Parallax starfield + faint grid
     const w = canvas.clientWidth,
       h = canvas.clientHeight;
-    const t = time * 0.04;
-
-    // Stars
-    const layers = [0.3, 0.6, 1.0];
-    layers.forEach((m, i) => {
-      const starCount = 30 + i * 20;
-      ctx.globalAlpha = 0.4 + i * 0.2;
-      for (let s = 0; s < starCount; s++) {
-        const x = ((s * 97.3) % w) - t * speed * (0.2 + m);
-        const y = (s * 53.7 + i * 123.4) % h;
-        const xr = ((x % w) + w) % w;
-        ctx.fillStyle = i === 2 ? "#c7d2fe" : "#93c5fd";
-        ctx.fillRect(xr, y, i === 0 ? 1 : 2, i === 0 ? 1 : 2);
-      }
-    });
-    ctx.globalAlpha = 1;
-
-    // Faint scanlines
-    ctx.fillStyle = "rgba(255,255,255,0.03)";
-    for (let y = 0; y < h; y += 3) {
-      ctx.fillRect(0, y, w, 1);
-    }
+    const scroll = (time * 0.04 * speed) % w;
+    // Two blits to wrap seamlessly; identical look to your per-dot draw
+    ctx.drawImage(starsCanvas, -scroll, 0, w, h);
+    ctx.drawImage(starsCanvas, w - scroll, 0, w, h);
   }
 
   function drawRobot(x, y, shield) {
@@ -875,14 +981,27 @@
     state = "OVER";
     finalScore.textContent = score;
     finalCoins.textContent = coinsTaken;
-    if (score > best) {
+    const newBest = score > best;
+    if (newBest) {
       best = score;
       store.setItem("ixijet_best", String(best));
     }
     finalBest.textContent = best;
     bestEl.textContent = `Best: ${best}`;
+
+    // native subhead feel
+    const sub = document.getElementById("go-sub");
+    sub.textContent = newBest
+      ? "New best! Nice flying."
+      : "Try again for a new best.";
+    if (newBest) sub.classList.add("good");
+    else sub.classList.remove("good");
+
     overOverlay.style.display = "grid";
     setCanvasInteractive(false);
+
+    // Optional haptic pop on fail
+    haptic(25);
   }
 
   // --- Tiny effects ---

@@ -16,6 +16,60 @@
   </head>
   <body>
     <div class="wrap" id="gameWrap">
+      <!-- Neon icon sprite (hidden) -->
+      <svg
+        aria-hidden="true"
+        style="position: absolute; width: 0; height: 0; overflow: hidden"
+      >
+        <defs>
+          <!-- Flame -->
+          <symbol id="i-flame" viewBox="0 0 24 24">
+            <!-- outer flame -->
+            <path
+              d="M12 2
+           C 8.5 6, 6 9, 6 12
+           a6 6 0 0 0 12 0
+           c0-3-1.4-6-6-10z"
+              fill="none"
+            />
+            <!-- inner flame -->
+            <path
+              d="M12 8
+           C 10.5 9.7, 9 11, 9 13
+           a3 3 0 0 0 6 0
+           c0-2-1-3.3-3-5z"
+              fill="none"
+            />
+          </symbol>
+
+          <!-- Gate (solid neon) -->
+          <symbol id="i-gate" viewBox="0 0 24 24">
+            <rect
+              x="5"
+              y="3"
+              width="14"
+              height="18"
+              rx="3"
+              ry="3"
+              fill="currentColor"
+            />
+          </symbol>
+
+          <!-- IXI interlocking rings  -->
+          <symbol id="i-ixi" viewBox="0 0 24 24">
+            <!-- left ring -->
+            <circle cx="9" cy="12" r="5" fill="none" />
+            <!-- right ring -->
+            <circle cx="15" cy="12" r="5" fill="none" />
+          </symbol>
+
+          <!-- Flag -->
+          <symbol id="i-flag" viewBox="0 0 24 24">
+            <path d="M5 21V5m0 0h9l-1.5 2L17 9H5" fill="none" />
+          </symbol>
+        </defs>
+      </svg>
+
       <canvas id="game"></canvas>
 
       <!-- Close / Back to Spixi -->
@@ -37,49 +91,110 @@
         </div>
       </div>
 
-      <div class="overlay" id="menu">
-        <div class="card">
-          <div class="badge">Ixian Mini Game</div>
-          <h1 class="title">Ixian Jetpack Runner</h1>
-          <p class="subtitle">
-            A Jetpack game with <strong>hold‑to‑thrust</strong> jetpack
-            physics.<br /><br />
-            Fly the Ixian robot between energy gates and collect coins.
-          </p>
-          <div class="btns">
-            <button class="btn" id="startBtn">▶</button>
-            <button class="btn" id="howBtn">How to play</button>
+      <div class="overlay native" id="menu">
+        <div class="native-hero">
+          <div class="native-logo">
+            <span class="logo-dot"></span>
+            <span>IXI MINIGAME</span>
           </div>
-          <p class="note">Desktop: Space/Click • Mobile: Tap & Hold</p>
-        </div>
-      </div>
-
-      <div class="overlay" id="how" style="display: none">
-        <div class="card">
-          <h2 class="title" style="font-size: 24px">How to play</h2>
-          <p class="subtitle" style="text-align: left">
-            • Hold to fire jetpack. Releasing lets gravity pull you down.<br />
-            • Fly through <strong>energy gates</strong><br />
-            • Collect <strong>IXI</strong> (+3 pts) and occasional
-            <strong>shields</strong> to survive one hit.<br />
-            • Beat your <strong>Best</strong> score.
+          <h1 class="native-title">IXIJUMP</h1>
+          <p class="native-tagline">
+            Hold to thrust. Weave the gates. Grab IXI.
           </p>
-          <div class="btns">
-            <button class="btn" id="backBtn">Back</button>
+        </div>
+
+        <div class="sheet">
+          <div class="sheet-grabber" aria-hidden="true"></div>
+          <div class="sheet-content">
+            <button class="btn-primary" id="startBtn">Start</button>
+            <button class="btn-ghost" id="howBtn">How to play</button>
           </div>
         </div>
       </div>
 
-      <div class="overlay" id="gameover" style="display: none">
-        <div class="card">
-          <h2 class="title">Game Over</h2>
-          <p class="subtitle">
-            <span id="finalScore">0</span> pts • Best
-            <span id="finalBest">0</span> • Coins <span id="finalCoins">0</span>
-          </p>
-          <div class="btns">
-            <button class="btn" id="retryBtn">↻ Retry</button>
-            <button class="btn" id="menuBtn">Menu</button>
+      <div class="overlay native" id="how" style="display: none">
+        <div class="native-hero small">
+          <h2 class="native-title">How to play</h2>
+          <p class="native-tagline">Master the thrust. Thread the gates.</p>
+        </div>
+
+        <div class="sheet">
+          <div class="sheet-grabber" aria-hidden="true"></div>
+          <div class="sheet-content">
+            <ol class="steps">
+              <li>
+                <div class="step-icon">
+                  <svg class="icon"><use href="#i-flame" /></svg>
+                </div>
+                <div class="step-text">
+                  <strong>Hold to lift</strong><br /><span
+                    >Release to fall with gravity.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <div class="step-icon">
+                  <svg class="icon"><use href="#i-gate" /></svg>
+                </div>
+                <div class="step-text">
+                  <strong>Weave the gates</strong><br /><span
+                    >Avoid the pillars and top laser.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <div class="step-icon">
+                  <svg class="icon"><use href="#i-ixi" /></svg>
+                </div>
+                <div class="step-text">
+                  <strong>Collect IXI</strong><br /><span
+                    >+3 points. Shields save one hit.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <div class="step-icon">
+                  <svg class="icon"><use href="#i-flag" /></svg>
+                </div>
+                <div class="step-text">
+                  <strong>Beat your Best</strong><br /><span
+                    >Score is shown in the HUD.</span
+                  >
+                </div>
+              </li>
+            </ol>
+
+            <button class="btn-primary" id="backBtn">Got it</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay native" id="gameover" style="display: none">
+        <div class="native-hero small">
+          <h2 class="native-title">Game Over</h2>
+          <p class="native-tagline" id="go-sub">Nice flying.</p>
+        </div>
+
+        <div class="sheet">
+          <div class="sheet-grabber" aria-hidden="true"></div>
+          <div class="sheet-content">
+            <div class="metrics">
+              <div class="metric">
+                <div class="metric-label">Score</div>
+                <div class="metric-value" id="finalScore">0</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Best</div>
+                <div class="metric-value" id="finalBest">0</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Coins</div>
+                <div class="metric-value" id="finalCoins">0</div>
+              </div>
+            </div>
+
+            <button class="btn-primary" id="retryBtn">Retry</button>
+            <button class="btn-ghost" id="menuBtn">Menu</button>
           </div>
         </div>
       </div>

@@ -1,322 +1,547 @@
-:root {
+/* ==========================================================================
+   IXIJUMP — Clean CSS
+   ========================================================================== */
+
+:root{
   color-scheme: dark;
-  --bg: #06110a; /* deep green-black */
-  --fg: #e6ffe9; /* pale green text */
-  --accent: #34d399; /* Ixian green */
-  --accent-2: #86efac; /* lighter green */
-  --danger: #f87171;
-  --gold: #facc15;
-  --panel: #07130b;
+
+  /* Palette */
+  --bg:#050d08;
+  --fg:#dfffe8;
+  --accent:#34d399;     /* neon green */
+  --accent-2:#86efac;   /* mint */
+  --panel:#06130c;      /* deep green-black */
+  --panel-2:#0a1f16;    /* slightly lighter */
+  --line:rgba(119,255,187,.14);
 }
 
-html,
-body {
-  height: 100%;
-}
-body {
+/* Base -------------------------------------------------------------------- */
+html, body { height: 100%; }
+body{
   margin: 0;
-  background: radial-gradient(
-      1200px 800px at 70% 20%,
-      #05220f 0%,
-      var(--bg) 60%
-    )
-    fixed;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter,
-    Avenir, Noto Sans, Arial, sans-serif;
+  background: radial-gradient(1200px 800px at 70% 20%, #05220f 0%, var(--bg) 60%) fixed;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Avenir, Noto Sans, Arial, sans-serif;
   color: var(--fg);
   overflow: hidden;
   display: grid;
   place-items: center;
 }
 
-.wrap {
-  width: min(92vw, 900px);
-  aspect-ratio: 9/16;
-  position: relative;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  background: linear-gradient(#0a1020, #060913);
-  overflow: hidden;
-}
-
-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: 0;
-}
-
-.hud {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  padding: 12px;
-    z-index: 15;           /* ↑ HUD above overlays (so score stays visible) */
-
-}
-.row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.space-between {
-  justify-content: space-between;
-}
-.chip {
-  background: #061909aa;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(160, 255, 200, 0.14);
-  backdrop-filter: blur(6px);
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.overlay {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: 20px;
-  background: linear-gradient(180deg, rgba(2, 6, 23, 0), rgba(2, 6, 23, 0.12));
-    z-index: 10;           /* ↑ overlays above the canvas */
-
-}
-.card {
-  max-width: 520px;
-  background: #0b1224aa;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-.title {
-  font-size: clamp(20px, 3.6vw, 40px);
-  letter-spacing: 0.3px;
-  margin: 0 0 6px;
-}
-.subtitle {
-  color: #cbd5e1;
-  margin: 0 0 14px;
-}
-.kbd {
-  display: inline-block;
-  padding: 0.2em 0.5em;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-bottom-width: 2px;
-  border-radius: 6px;
-  font-weight: 700;
-}
-.btns {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.btn {
-  pointer-events: auto;
-  cursor: pointer;
-  user-select: none;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #0f2a1a, #0a1a11);
-  border: 1px solid rgba(160, 255, 200, 0.18);
-  color: white;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-}
-.btn:hover {
-  transform: translateY(-1px);
-}
-.note {
-  font-size: 12px;
-  color: #a3b2c7;
-  margin-top: 8px;
-}
-
-.badge {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 12px;
-}
-
-/* Close button — neon EXIT plaque */
-.close-btn {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
-  right: 12px;
-  z-index: 1000;
-
-  /* plaque look (no glow) */
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(52, 211, 153, 0.55);
-  background: linear-gradient(180deg, #07130b, #051009);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-
-  /* hide original “✕” */
-  color: transparent;
-  font-size: 0;
-  line-height: 1;
-  user-select: none;
-}
-
-/* Draw the EXIT label */
-.close-btn::after {
-  content: "EXIT";
-  display: inline-block;
-  font-family: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    monospace;
-  font-size: clamp(10px, 2vw, 12px);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #34d399; /* Ixian green */
-}
-
-.close-btn:hover {
-  border-color: rgba(52, 211, 153, 0.75);
-}
-.close-btn:active {
-  transform: scale(0.98);
-}
-.close-btn:focus-visible {
-  outline: 2px solid rgba(52, 211, 153, 0.8);
-  outline-offset: 2px;
-}
-
-/* Light mode tweak */
-@media (prefers-color-scheme: light) {
-  .close-btn {
-    background: linear-gradient(180deg, #0a1c13, #07160f);
-  }
-}
-
-/* Mobile interactions: keep canvas aggressive, let UI tap/click on Android */
 *,
 *::before,
-*::after {
-  -webkit-tap-highlight-color: transparent;
-}
+*::after{ -webkit-tap-highlight-color: transparent; }
 
-/* Only the canvas disables gestures */
-canvas {
+/* Game container ---------------------------------------------------------- */
+.wrap{
+  width: 100%;
+  max-width: 900px;                 /* JS may clamp further */
+  height: auto;                     /* JS sets px height at runtime */
+  aspect-ratio: 9/16;               /* fallback */
+  position: relative;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
+  background: linear-gradient(#0a1020, #060913);
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Android WebView fallback for missing aspect-ratio support */
+@supports not (aspect-ratio: 1 / 1){
+  .wrap{ position: relative; }
+  .wrap::before{
+    content:"";
+    display:block;
+    padding-top: calc(100% * 16 / 9); /* 9:16 portrait */
+  }
+  .wrap > canvas,
+  .wrap > .hud,
+  .wrap > .overlay{ position:absolute; inset:0; }
+}
+
+/* Canvas ------------------------------------------------------------------ */
+canvas{
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block; z-index: 0;
+
+  -webkit-user-select: none; user-select: none;
   -webkit-touch-callout: none;
   touch-action: none;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-/* Allow overlays & buttons to synthesize clicks (fixes Android WebView) */
-.overlay,
-.overlay *,
-.btn,
-.close-btn {
-  touch-action: manipulation;
-}
-
-/* Keep wrap non-selectable, but don't kill click synthesis */
-.wrap {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
-
-/* --- Android WebView fallback for missing aspect-ratio support --- */
-@supports not (aspect-ratio: 1 / 1) {
-  .wrap {
-    position: relative;        /* keep */
-    /* width is already set above; we just ensure height via ::before */
-  }
-
-  /* Creates height = width * 16/9 so the game area isn’t 0px tall */
-  .wrap::before {
-    content: "";
-    display: block;
-    padding-top: calc(100% * 16 / 9); /* portrait 9:16 container */
-  }
-
-  /* Make the children fill the height created by ::before */
-  .wrap > canvas,
-  .wrap > .hud,
-  .wrap > .overlay {
-    position: absolute;
-    inset: 0;
-  }
-}
-
-/* Put overlays above everything interactive, just in case */
-.overlay { z-index: 30; }
-
-
-/* --- Retro neon IXIJUMP header --- */
-.ixijump-banner {
-  position: fixed;
-  /* drop it down a touch, responsive to screen height */
-  top: calc(env(safe-area-inset-top, 0px) + clamp(16px, 3.25vh, 44px));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 900;
+/* HUD --------------------------------------------------------------------- */
+.hud{
+  position: absolute; inset: 0;
   pointer-events: none;
+  padding: 12px;
+  z-index: 15; /* HUD above overlays so score stays visible */
+}
+.row{ display:flex; gap:8px; align-items:center; }
+.space-between{ justify-content:space-between; }
+.chip{
+  background: rgba(6,25,14,.78);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(52,211,153,.18);
+  backdrop-filter: blur(6px);
+  font-weight: 600;
+  letter-spacing: .3px;
 }
 
-.ixijump-word {
-  /* Scales nicely across phones/tablets/desktops */
-  font-size: clamp(18px, 6vw, 48px);
-  font-family: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    monospace;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* Top “IXIJUMP” banner ---------------------------------------------------- */
+.ixijump-banner{
+  position: absolute;  /* not fixed—stays in frame */
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 50%; transform: translateX(-50%);
+  z-index: 25; pointer-events: none;
+}
+.ixijump-word{
+  font-size: clamp(16px, 5.2vw, 42px);
+  font-family: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  letter-spacing: .08em; text-transform: uppercase;
   color: #bfffe0;
-
-  /* Neon glow stack */
-  text-shadow: 0 0 2px rgba(255, 255, 255, 0.55),
-    0 0 6px rgba(52, 211, 153, 0.95), 0 0 14px rgba(16, 185, 129, 0.75),
-    0 0 28px rgba(16, 185, 129, 0.45);
-
-  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.55));
-  animation: ixineonPulse 2.3s ease-in-out infinite,
-    ixineonFlicker 6s steps(24, end) infinite;
+  text-shadow:
+    0 0 2px rgba(255,255,255,.55),
+    0 0 8px rgba(52,211,153,.95),
+    0 0 18px rgba(16,185,129,.6),
+    0 0 36px rgba(16,185,129,.4);
+  filter: drop-shadow(0 0 8px rgba(16,185,129,.55));
+  animation: ixineonPulse 2.3s ease-in-out infinite, ixineonFlicker 6s steps(24,end) infinite;
   will-change: filter, text-shadow, transform;
 }
-
-/* Smooth breathing pulse */
-@keyframes ixineonPulse {
-  0%,
-  100% {
-    transform: translateX(-50%) scale(1) translateZ(0); /* keep GPU happy */
-    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.55)) brightness(1);
+@keyframes ixineonPulse{
+  0%,100%{
+    transform: translateX(-50%) scale(1) translateZ(0);
+    filter: drop-shadow(0 0 8px rgba(16,185,129,.55)) brightness(1);
   }
-  45% {
+  45%{
     transform: translateX(-50%) scale(1.04);
-    filter: drop-shadow(0 0 18px rgba(16, 185, 129, 0.85)) brightness(1.15);
+    filter: drop-shadow(0 0 18px rgba(16,185,129,.85)) brightness(1.15);
   }
+}
+@keyframes ixineonFlicker{
+  0%,8%,9%,15%,16%,100%{ opacity:1; }
+  8.5%,15.5%{ opacity:.86; }
 }
 
-/* Tiny random-looking flickers for arcade vibe */
-@keyframes ixineonFlicker {
-  0%,
-  8%,
-  9%,
-  15%,
-  16%,
-  100% {
-    opacity: 1;
-  }
-  8.5%,
-  15.5% {
-    opacity: 0.86;
-  } /* quick blips */
+/* EXIT button ------------------------------------------------------------- */
+.close-btn{
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: 12px; z-index: 1000;
+  padding: 8px 12px; border-radius: 10px;
+  border: 1px solid rgba(52,211,153,.55);
+  background: linear-gradient(180deg, #07130b, #051009);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+
+  color: transparent; font-size: 0; line-height: 1; user-select: none;
 }
+.close-btn::after{
+  content:"EXIT";
+  font-family:"Press Start 2P", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: clamp(10px, 2vw, 12px);
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--accent);
+}
+.close-btn:hover{ border-color: rgba(52,211,153,.75); }
+.close-btn:active{ transform: scale(.98); }
+.close-btn:focus-visible{ outline:2px solid rgba(52,211,153,.8); outline-offset:2px; }
+@media (prefers-color-scheme: light){
+  .close-btn{ background: linear-gradient(180deg, #0a1c13, #07160f); }
+}
+
+/* Overlays --------------------------------------------------------------- */
+.overlay{
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  text-align: center; padding: 20px;
+  background: linear-gradient(180deg, rgba(2,6,23,0), rgba(2,6,23,.12));
+  z-index: 30;
+  touch-action: manipulation;
+}
+.overlay.native{
+  grid-template-rows: 1fr auto;
+  padding: 0;
+  background: radial-gradient(1100px 520px at 50% 0%, rgba(6,17,10,.55), rgba(6,17,10,.15) 70%, transparent 85%);
+  backdrop-filter: blur(4px) saturate(110%);
+  isolation: isolate;
+}
+/* CRT scanline/noise layer — lighter so titles stay crisp */
+.overlay.native::before{
+  content:"";
+  position:absolute; inset:0; pointer-events:none; z-index:-1;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255,255,255,.04), rgba(255,255,255,.04) 1px, transparent 1px, transparent 3px),
+    radial-gradient(1200px 800px at 50% 20%, rgba(0,0,0,.35), transparent 70%);
+  mix-blend-mode: overlay;
+  opacity: .06; /* was .12 */
+}
+
+/* Native hero ------------------------------------------------------------- */
+.native-hero{
+  position: relative;
+  padding: calc(env(safe-area-inset-top,0px) + 24px) 20px 12px;
+  display: grid; align-content: end; justify-items: center; text-align: center;
+  background: radial-gradient(900px 360px at 50% 0%, rgba(10,40,24,.75), transparent 70%);
+}
+.native-hero.small{ padding-bottom: 0; }
+
+.native-logo{
+  display:inline-flex; align-items:center; gap:8px;
+  font-weight: 900; letter-spacing:.12em; text-transform:uppercase; font-size:12px;
+  color: var(--accent);
+}
+.native-logo .logo-dot{
+  width:8px; height:8px; border-radius:999px; background:var(--accent);
+  box-shadow:0 0 12px rgba(52,211,153,.85), 0 0 30px rgba(52,211,153,.35);
+}
+
+/* Titles — sharper neon with dark plate to avoid “choppy” look */
+.native-title{
+  margin: 8px 0 6px;
+  font-size: clamp(22px, 4.5vw, 36px);
+  letter-spacing: .08em;
+  font-family: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+  position: relative;
+  padding: 6px 16px;
+  text-shadow:
+    0 0 1px rgba(255,255,255,.40),
+    0 0 6px rgba(52,211,153,.55),
+    0 0 12px rgba(16,185,129,.35);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.native-hero.small .native-title{ padding: 4px 14px; }
+.native-title::before{
+  content:"";
+  position:absolute; inset:-4px -10px; z-index:-1;
+  border-radius: 6px;
+  background: rgba(4,12,8,.56);
+  box-shadow:
+    0 0 0 1px rgba(52,211,153,.08),
+    0 10px 24px rgba(0,0,0,.45),
+    inset 0 0 24px rgba(0,0,0,.28);
+}
+.native-tagline{
+  margin: 0;
+  color:#cfead9;
+  font-size:14px;
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Bottom sheet ------------------------------------------------------------ */
+.sheet{
+  position: relative; width: 100%;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border-top-left-radius: 20px; border-top-right-radius: 20px;
+  border: 1px solid rgba(52,211,153,.18);
+  box-shadow: 0 -12px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.35);
+  padding-bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+  animation: sheetIn 320ms cubic-bezier(.21,.98,.6,.99);
+}
+@keyframes sheetIn{
+  from{ transform: translateY(14%); opacity: 0; }
+  to  { transform: translateY(0);    opacity: 1; }
+}
+.sheet::after{
+  content:"";
+  position:absolute; left:0; right:0; top:-1px; height:1px;
+  background: linear-gradient(90deg, transparent, rgba(52,211,153,.55), transparent);
+}
+.sheet-grabber{
+  width: 42px; height: 4px;
+  background: rgba(191,255,223,.25);
+  border-radius: 999px;
+  margin: 10px auto;
+  box-shadow: 0 0 8px rgba(52,211,153,.45);
+}
+.sheet-content{ padding: 8px 16px 14px; }
+.sheet-row{ display:flex; gap:8px; justify-content:center; margin-bottom:12px; }
+.sheet-chip{
+  font-size: 12px; padding: 6px 10px; border-radius:999px;
+  background:#0f1a30; border:1px solid rgba(255,255,255,.08);
+}
+
+/* Buttons ----------------------------------------------------------------- */
+.btns{ display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+.btn{
+  pointer-events:auto; cursor:pointer; user-select:none;
+  padding:10px 14px; border-radius:12px;
+  background: linear-gradient(180deg, #0f2a1a, #0a1a11);
+  border:1px solid rgba(160,255,200,.18);
+  color:white; font-weight:800; letter-spacing:.4px;
+}
+.btn:hover{ transform: translateY(-1px); }
+
+.btn-primary, .btn-ghost{
+  width:100%;
+  padding:14px 16px; border-radius:14px;
+  font-weight:800; letter-spacing:.3px;
+  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+}
+
+/* Softer primary glow */
+.btn-primary{
+  background: linear-gradient(180deg, #19b85c, #107b43);
+  border: 1px solid rgba(52,211,153,.28);
+  color: white;
+  box-shadow:
+    0 8px 18px rgba(23,163,74,.18),
+    inset 0 0 10px rgba(52,211,153,.18);
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+.btn-primary:hover{ filter: brightness(1.03); }
+.btn-primary:active{ transform: translateY(1px); }
+
+/* Ghost button: lighter wireframe */
+.btn-ghost{
+  margin-top: 8px;
+  background: linear-gradient(180deg, transparent, rgba(17,45,31,.30));
+  color:#d9ffe9;
+  border: 1px solid rgba(52,211,153,.22);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+}
+.btn-ghost:hover{
+  border-color: rgba(52,211,153,.38);
+  box-shadow: inset 0 0 8px rgba(52,211,153,.16);
+}
+
+/* Misc text --------------------------------------------------------------- */
+.title{ font-size: clamp(20px, 3.6vw, 40px); letter-spacing:.3px; margin:0 0 6px; }
+.subtitle{ color:#cbd5e1; margin:0 0 14px; }
+.kbd{
+  display:inline-block; padding:.2em .5em;
+  border:1px solid rgba(255,255,255,.2); border-bottom-width:2px; border-radius:6px; font-weight:700;
+}
+.note{ font-size:12px; color:#a3b2c7; margin-top:8px; }
+.badge{
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  font-weight:900; text-transform:uppercase; letter-spacing:.12em; font-size:12px;
+}
+
+/* How-to list ------------------------------------------------------------- */
+.steps{ list-style:none; margin:6px 0 0; padding:0; display:grid; gap:10px; }
+.steps li{
+  display:grid; grid-template-columns:36px 1fr; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:14px;
+  background: linear-gradient(180deg, #0c1c14, #0a1611);
+  border: 1px solid rgba(52,211,153,.14);
+  box-shadow: inset 0 0 14px rgba(52,211,153,.05);
+}
+.step-icon{
+  font-size:18px; line-height:1; text-align:center;
+  font-family:"Press Start 2P", ui-monospace, monospace;
+  color: var(--accent);
+  filter: drop-shadow(0 0 2px rgba(52,211,153,.45));
+}
+.step-text strong{ font-size:14px; }
+.step-text span{ color:#9fceb7; font-size:12px; }
+
+/* Game Over metrics ------------------------------------------------------- */
+.metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:6px 0 14px; }
+.metric{
+  padding:12px 10px; border-radius:14px; text-align:center;
+  background: linear-gradient(180deg, #0c1c14, #0a1611);
+  border: 1px solid rgba(52,211,153,.18);
+  box-shadow: inset 0 0 18px rgba(52,211,153,.06);
+}
+.metric-label{ font-size:12px; color:#9fceb7; letter-spacing:.2px; }
+.metric-value{
+  margin-top:4px; font-weight:900; font-size: clamp(18px, 4.2vw, 26px);
+  line-height:1.1; color: var(--fg);
+}
+
+/* Subtle “new best” accent */
+.native-hero.small .good{
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(52,211,153,.38);
+}
+
+/* Card (generic) ---------------------------------------------------------- */
+.card{
+  max-width: 520px;
+  background: #0b1224aa;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+/* Small phones ------------------------------------------------------------ */
+@media (max-width: 360px){
+  .native-title{ font-size: clamp(20px, 5vw, 32px); }
+  .sheet-content{ padding: 8px 12px 14px; }
+}
+
+/* ==== Title clarity & softer UI (drop-in patch) ======================= */
+
+/* 1) Make titles crisp neon without any background plate */
+.native-title{
+  /* keep your font/size; only tweaks below */
+  padding: 0;                     /* no padded plate */
+  display: inline-block;          /* tighter shadow bounds */
+  text-shadow:
+    0 0 1px rgba(255,255,255,.35),
+    0 0 4px rgba(52,211,153,.45),
+    0 0 10px rgba(16,185,129,.28);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* kill the plate that caused the “weird shape” */
+.native-title::before{ content: none !important; }
+
+/* tagline a hair crisper against the bg */
+.native-tagline{
+  color:#cfead9;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+
+/* 2) CRT overlay lighter so it doesn't imprint behind text */
+.overlay.native::before{
+  opacity: .04;     /* was .06–.12; keeps vibe but avoids banding behind titles */
+}
+
+/* 3) Softer button glow & contrast (keeps the look, less bright) */
+.btn-primary{
+  background: linear-gradient(180deg, #18ac57, #0f6f3d); /* slightly darker */
+  border: 1px solid rgba(52,211,153,.22);
+  box-shadow:
+    0 6px 14px rgba(23,163,74,.16),
+    inset 0 0 6px rgba(52,211,153,.12);
+  text-shadow: 0 1px 0 rgba(0,0,0,.22);
+}
+.btn-primary:hover{ filter: brightness(1.02); }
+.btn-ghost{
+  background: linear-gradient(180deg, transparent, rgba(17,45,31,.22));
+  border: 1px solid rgba(52,211,153,.18);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.3);
+}
+.btn-ghost:hover{
+  border-color: rgba(52,211,153,.3);
+  box-shadow: inset 0 0 6px rgba(52,211,153,.12);
+}
+
+/* 4) Small variant keeps the same clarity */
+.native-hero.small .native-title{ padding: 0; }
+
+/* give the small hero some breathing room */
+.native-hero.small{
+  padding-bottom: 16px; /* try 12–20px to taste */
+}
+
+/* optional: add a little extra below the tagline only on small */
+.native-hero.small .native-tagline{
+  margin-bottom: 8px;
+}
+
+/* === Exit-style buttons (matches .close-btn look) ====================== */
+.btn-primary,
+.btn-ghost{
+  /* layout */
+  display:block;
+  width:100%;
+  padding: 16px 18px;
+  border-radius: 16px;
+
+  /* exit plaque look */
+  background: linear-gradient(180deg, #07130b, #051009);
+  border: 1px solid rgba(52, 211, 153, .55);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+
+  /* neon label */
+  font-family: "Press Start 2P", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-weight: 900;
+  color: var(--accent);
+
+  /* feel */
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+  transition: transform .06s ease, filter .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.btn-primary:hover,
+.btn-ghost:hover{
+  border-color: rgba(52, 211, 153, .75);
+  filter: brightness(1.02);
+}
+
+.btn-primary:active,
+.btn-ghost:active{
+  transform: translateY(1px);
+}
+
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible{
+  outline: 2px solid rgba(52,211,153,.8);
+  outline-offset: 2px;
+}
+
+/* Optional: make the primary stand out a touch more with a soft glow */
+.btn-primary{
+  box-shadow:
+    0 8px 18px rgba(0,0,0,.35),
+    inset 0 0 10px rgba(52,211,153,.10);
+  color: #dfffe8;  /* slightly brighter label for the main CTA */
+}
+
+/* Keep spacing in the sheet nice and even */
+.sheet .btn-primary{ margin-top: 4px; }
+.sheet .btn-ghost{   margin-top: 10px; }
+
+/* Filled "Start" (primary) — mint-tinted plaque */
+.btn-primary{
+  /* keep the EXIT plaque base, then add a translucent mint fill on top */
+  background:
+    linear-gradient(180deg, rgba(52,211,153,.26), rgba(34,197,94,.18)), /* mint tint */
+    linear-gradient(180deg, #07130b, #051009);                          /* plaque */
+  border-color: rgba(52,211,153,.65);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.35),     /* same inner rim as EXIT */
+    0 10px 22px rgba(23,163,74,.18),     /* soft lift */
+    inset 0 0 18px rgba(52,211,153,.14); /* faint inner glow */
+  color: #e7fff0;                        /* a bit brighter label */
+}
+
+.btn-primary:hover{
+  filter: brightness(1.05);
+  border-color: rgba(52,211,153,.8);
+}
+
+.btn-primary:active{
+  transform: translateY(1px);
+  filter: brightness(0.98);
+}
+/* Neon outline icons */
+.step-icon svg,
+.icon {
+  width: 20px;
+  height: 20px;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  /* neon glow */
+  filter: drop-shadow(0 0 4px rgba(52,211,153,.65))
+          drop-shadow(0 0 10px rgba(16,185,129,.35));
+}
+
+/* slightly larger on bigger rows */
+.steps .step-icon svg { width: 22px; height: 22px; }
+
+/* pixel-perfect icons */
+.icon--pixel { shape-rendering: crispEdges; image-rendering: pixelated; }
+

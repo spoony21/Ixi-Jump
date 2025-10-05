@@ -1,7 +1,7 @@
 caVersion = 0
 id = com.spoony21.ixi-jump
 publisher = spoony
-name = IxIJump
-version = 1.1.2
+name = IXIJump
+version = 1.1.3
 capabilities = singleUser
 contentUrl = https://spoony21.github.io/Ixi-Jump
