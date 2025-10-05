@@ -123,6 +123,10 @@
     const rawH = rect.height;
     const cssH = rawH && rawH > 10 ? rawH : cssW * (16 / 9);
 
+    // set the CSS size so clientWidth/Height are non-zero on Android
+    canvas.style.width = Math.floor(cssW) + "px";
+    canvas.style.height = Math.floor(cssH) + "px";
+
     // Backing-store size (device pixels)
     canvas.width = Math.max(1, Math.floor(cssW * DPR));
     canvas.height = Math.max(1, Math.floor(cssH * DPR));
@@ -133,7 +137,9 @@
     ctx.imageSmoothingEnabled = false;
 
     rebuildLaserGrad();
-    buildStars(canvas.clientWidth, canvas.clientHeight);
+
+    // build the star buffer with the CSS size
+    buildStars(Math.floor(cssW), Math.floor(cssH));
   }
 
   // Use RO when available; otherwise fallback to window.resize.
@@ -232,7 +238,11 @@
   let holding = false;
   function setHold(v) {
     holding = v;
+    // Only rumble during PLAY and not overheated
+    if (holding && state === "PLAY" && !robot.overheated) startHoldVibe();
+    else stopHoldVibe();
   }
+
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
     if (e.code === "Space") {
@@ -320,6 +330,7 @@
 
   function toMenu() {
     state = "MENU";
+    stopHoldVibe();
     menuOverlay.style.display = "grid";
     howOverlay.style.display = "none";
     overOverlay.style.display = "none";
@@ -327,6 +338,7 @@
   }
   function start() {
     state = "PLAY";
+    stopHoldVibe();
     menuOverlay.style.display = "none";
     howOverlay.style.display = "none";
     overOverlay.style.display = "none";
@@ -340,6 +352,8 @@
   function togglePause() {
     if (state === "PLAY") {
       paused = !paused;
+      if (paused) stopHoldVibe();
+      else if (holding && !robot.overheated) startHoldVibe();
     }
   }
 
@@ -379,6 +393,34 @@
   function haptic(ms = 15) {
     if (navigator.vibrate) navigator.vibrate(ms);
   }
+
+  // --- Haptics while holding (subtle rumble) ---
+  const canVibe = !!navigator.vibrate;
+  let holdVibeId = null; // setInterval id for the “rumble”
+  let wasOverheated = false; // track overheat transitions
+
+  function startHoldVibe() {
+    if (!canVibe || holdVibeId) return;
+    // Gentle cadence: ~120ms ticks; pulse length scales 8–16ms with thrustHold
+    holdVibeId = setInterval(() => {
+      const dur = Math.round(8 + 8 * Math.min(1, Math.max(0, thrustHold)));
+      navigator.vibrate(dur);
+    }, 120);
+  }
+
+  function stopHoldVibe() {
+    if (holdVibeId) {
+      clearInterval(holdVibeId);
+      holdVibeId = null;
+    }
+    if (canVibe) navigator.vibrate(0); // cancel any pending vibration
+  }
+
+  // Safety: stop rumble if app is backgrounded or tab hidden
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopHoldVibe();
+  });
+  window.addEventListener("pagehide", stopHoldVibe);
 
   function drawBackground(dt) {
     const w = canvas.clientWidth,
@@ -839,6 +881,17 @@
     }
     robot.heat = clamp(robot.heat, 0, HEAT_MAX);
     robot.overheated = robot.heat >= HEAT_MAX - 0.001 && holding;
+    // Manage rumble around overheat state transitions
+    if (holding && state === "PLAY") {
+      if (robot.overheated && !wasOverheated) {
+        // Just overheated: stop rumble
+        stopHoldVibe();
+      } else if (!robot.overheated && wasOverheated) {
+        // Recovered while still holding: resume rumble
+        startHoldVibe();
+      }
+    }
+    wasOverheated = robot.overheated;
 
     // Throttle meter: ramps while holding, drops when released
     if (holding && !robot.overheated) {
@@ -979,6 +1032,7 @@
 
   function gameOver() {
     state = "OVER";
+    stopHoldVibe(); // stop any rumble
     finalScore.textContent = score;
     finalCoins.textContent = coinsTaken;
     const newBest = score > best;

@@ -165,13 +165,20 @@ canvas{
   z-index: 30;
   touch-action: manipulation;
 }
+/* Let the bottom sheet breathe from the frame */
 .overlay.native{
   grid-template-rows: 1fr auto;
-  padding: 0;
-  background: radial-gradient(1100px 520px at 50% 0%, rgba(6,17,10,.55), rgba(6,17,10,.15) 70%, transparent 85%);
+  /* inset L/R/B, with safe-area fallback */
+  padding: 0 10px 10px;
+  padding-left:  max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
+  padding-bottom:max(10px, env(safe-area-inset-bottom, 0px));
+  background: radial-gradient(1100px 520px at 50% 0%,
+              rgba(6,17,10,.55), rgba(6,17,10,.15) 70%, transparent 85%);
   backdrop-filter: blur(4px) saturate(110%);
   isolation: isolate;
 }
+
 /* CRT scanline/noise layer — lighter so titles stay crisp */
 .overlay.native::before{
   content:"";
@@ -545,3 +552,23 @@ canvas{
 /* pixel-perfect icons */
 .icon--pixel { shape-rendering: crispEdges; image-rendering: pixelated; }
 
+/* inset the bottom sheet so the outer corners are visible */
+.sheet{
+  position: relative;
+  width: calc(100% - 16px);  /* ← 8px inset on both sides */
+  margin: 0 auto;            /* center it */
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border: 1px solid rgba(52,211,153,.18);
+  box-shadow: 0 -12px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.35);
+  padding-bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+  animation: sheetIn 320ms cubic-bezier(.21,.98,.6,.99);
+}
+
+/* Remove the draggable-looking handle */
+.sheet-grabber{
+  display: none !important;
+  margin: 0 !important;
+  height: 0 !important;
+}
