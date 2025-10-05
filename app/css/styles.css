@@ -65,7 +65,7 @@ canvas{
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   display: block; z-index: 0;
-
+  will-change: transform; /*composite to keep a layer */
   -webkit-user-select: none; user-select: none;
   -webkit-touch-callout: none;
   touch-action: none;
@@ -572,3 +572,8 @@ canvas{
   margin: 0 !important;
   height: 0 !important;
 }
+
+@media (max-width: 1000px){
+  .wrap{ min-height: 60dvh; } /* any non-zero height prevents 0px first paint */
+}
+

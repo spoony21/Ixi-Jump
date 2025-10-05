@@ -1,9 +1,26 @@
 (() => {
   const canvas = document.getElementById("game");
-  // Ask Android WebView for the fast path; appearance is unchanged.
-  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  // On Android WebView, {desynchronized:true, alpha:false} can blank the canvas.
+  // Use the safest path on Android, keep your fast path elsewhere.
+  const ctx = isAndroid
+    ? canvas.getContext("2d")
+    : canvas.getContext("2d", { desynchronized: true, alpha: false });
+
+  // Give the canvas an explicit opaque background so even if alpha is honored
+  // the layer still composites visibly.
+  canvas.style.backgroundColor = "#06130c";
 
   const wrap = document.getElementById("gameWrap"); // <-- add this line
+
+  // Bootstrap: ensure we never start with a 0×0 canvas (Android quirk).
+  if (!wrap.style.width || !wrap.style.height) {
+    const w = Math.min(window.innerWidth - 16, 900);
+    const h = Math.floor(w / (9 / 16));
+    wrap.style.width = w + "px";
+    wrap.style.height = h + "px";
+  }
 
   // --- Fit the game to the *actual* viewport, reserving top UI space ---
   (function fitWrapBootstrap() {
@@ -116,6 +133,11 @@
   }
 
   function resize() {
+    // Android sometimes reports 0 for the first layout pass; retry next frame.
+    if ((wrap.clientWidth | 0) === 0 || (wrap.clientHeight | 0) === 0) {
+      requestAnimationFrame(resize);
+      return;
+    }
     const DPR = Math.min(2, window.devicePixelRatio || 1);
 
     const rect = wrap.getBoundingClientRect();
@@ -390,22 +412,47 @@
     return v < min ? min : v > max ? max : v;
   }
 
-  function haptic(ms = 15) {
-    if (navigator.vibrate) navigator.vibrate(ms);
+  // --- Haptics (gesture-gated + stronger) ----------------------------------
+
+  // 1) Gate vibration until the first user gesture (fixes Chrome/WebView warning)
+  const canVibe = !!navigator.vibrate;
+  let vibReady = false;
+  ["pointerdown", "touchstart", "mousedown", "keydown"].forEach((ev) => {
+    window.addEventListener(
+      ev,
+      () => {
+        vibReady = true;
+      },
+      { once: true, capture: true }
+    );
+  });
+
+  // 2) Safe wrapper (number or pattern), no-ops until vibReady
+  function safeVibrate(patternOrMs) {
+    if (!canVibe || !vibReady) return;
+    try {
+      navigator.vibrate(patternOrMs);
+    } catch {}
   }
 
-  // --- Haptics while holding (subtle rumble) ---
-  const canVibe = !!navigator.vibrate;
-  let holdVibeId = null; // setInterval id for the “rumble”
+  // 3) One-shot haptic helper (make it punchier with a short pattern)
+  function haptic(ms = 28) {
+    // Stronger feel: two quick pulses (works on Android/Chrome; falls back silently elsewhere)
+    safeVibrate([ms, 24, ms]);
+  }
+
+  // --- Haptics while holding (beefier “rumble”) ----------------------------
+  let holdVibeId = null; // setInterval id for the rumble
   let wasOverheated = false; // track overheat transitions
 
   function startHoldVibe() {
-    if (!canVibe || holdVibeId) return;
-    // Gentle cadence: ~120ms ticks; pulse length scales 8–16ms with thrustHold
+    if (holdVibeId || !vibReady || !canVibe) return;
     holdVibeId = setInterval(() => {
-      const dur = Math.round(8 + 8 * Math.min(1, Math.max(0, thrustHold)));
-      navigator.vibrate(dur);
-    }, 120);
+      // Scale intensity with throttle hold; slightly longer for a firmer feel
+      const dur = Math.round(14 + 20 * Math.min(1, Math.max(0, thrustHold))); // ~14–34ms
+      // Tiny 2-step pattern feels “harder” than a single blip
+      safeVibrate([dur, 18, 10]);
+    }, 110); // a bit faster cadence
   }
 
   function stopHoldVibe() {
@@ -413,7 +460,8 @@
       clearInterval(holdVibeId);
       holdVibeId = null;
     }
-    if (canVibe) navigator.vibrate(0); // cancel any pending vibration
+    // Cancel after a gesture only (avoids the startup warning)
+    safeVibrate(0);
   }
 
   // Safety: stop rumble if app is backgrounded or tab hidden
